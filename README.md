@@ -4,11 +4,10 @@ Privacy-preserving frame extraction for AI vision pipelines.
 
 ## What it does
 
-- Detects faces in an image using YuNet (ONNX, CPU-friendly).
+- Detects faces using YuNet (ONNX, CPU-friendly).
 - Redacts them irreversibly with a solid black fill — not a blur.
 - Crops high-confidence regions of interest for downstream use.
-- Reports honest byte accounting for the payload that actually
-  goes over the wire (including base64 inflation).
+- Reports honest byte accounting including base64 inflation.
 
 ## What it does NOT do (yet)
 
@@ -18,7 +17,7 @@ Privacy-preserving frame extraction for AI vision pipelines.
 
 ## Install
 
-    uv sync
+    uv sync --extra dev
 
 ## Usage
 
@@ -29,14 +28,13 @@ Privacy-preserving frame extraction for AI vision pipelines.
 
     compressor = EdgeFrameCompressor(
         yunet_model_path="models/yunet.onnx",
-        yunet_model_sha256="<your hash here>",
+        yunet_model_sha256="<see models/README.md>",
     )
 
     frame = cv2.imread("photo.jpg")
     detections = [
         DetectionInput(
-            label="vehicle",
-            confidence=0.92,
+            label="vehicle", confidence=0.92,
             bbox=BoundingBox(x=100, y=100, w=200, h=200),
         ),
     ]
@@ -45,18 +43,12 @@ Privacy-preserving frame extraction for AI vision pipelines.
 
 ## Trust model
 
-- The YuNet model hash is verified at startup. A swapped model file
+- YuNet model hash is verified at startup. A swapped model file
   causes a hard failure, not silent misbehavior.
-- If redaction is disabled (`require_redaction=False`), the result
-  object records `redaction_enabled=False` and every PII-labeled
-  ROI triggers an ERROR log. Callers cannot silently ship
-  unredacted frames.
-- Redaction uses solid fill, not Gaussian blur. Blur is reversible
-  under deconvolution attacks; a black rectangle is not.
-
-## Tests
-
-    uv run pytest
+- If redaction is disabled, the result object records
+  `redaction_enabled=False` and PII-labeled ROIs log at ERROR.
+- Redaction uses solid fill, not Gaussian blur. Blur is
+  reversible under deconvolution attacks; a black rectangle is not.
 
 ## Status
 
