@@ -1,9 +1,4 @@
-"""Tests for EdgeFrameCompressor.
-
-The critical test is `test_solid_fill_redaction_uses_injected_detector`:
-it asserts that pixels inside a known face region are actually changed
-to black. If that test breaks, the privacy guarantee is broken.
-"""
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -13,6 +8,9 @@ from edge_frame_compressor import (
     DetectionInput,
     EdgeFrameCompressor,
 )
+
+MODEL_PATH = Path(__file__).resolve().parent.parent / "models" / "yunet.onnx"
+MODEL_HASH = "8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4"
 
 
 class _FakeYuNet:
