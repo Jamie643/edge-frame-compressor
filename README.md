@@ -41,6 +41,22 @@ Privacy-preserving frame extraction for AI vision pipelines.
     result = compressor.process_frame(frame, detections, include_preview=True)
     print(result.byte_delta_pct, "percent saved")
 
+## Byte accounting
+
+`byte_delta_pct` is computed as:
+
+    (raw_frame_bytes - emitted_base64_bytes) / raw_frame_bytes * 100
+
+It is *negative* when the emitted payload exceeds the raw frame. This
+happens when ROIs collectively cover most of the frame, or when
+`include_preview=True` adds a second full-frame JPEG.
+
+Real reductions come from emitting many small ROIs instead of one large
+frame — a 4K camera frame with a car and a pedestrian crop yields a
+large positive number. Emitting a single ROI the size of the frame
+yields a negative number, and the library reports that honestly rather
+than clamping it.
+
 ## Trust model
 
 - YuNet model hash is verified at startup. A swapped model file
@@ -50,14 +66,6 @@ Privacy-preserving frame extraction for AI vision pipelines.
 - Redaction uses solid fill, not Gaussian blur. Blur is
   reversible under deconvolution attacks; a black rectangle is not.
   
-## Byte accounting
-
-`byte_delta_pct` is computed as `(raw_bytes - emitted_base64_bytes) / raw_bytes`.
-It is *negative* when the emitted payload exceeds the raw frame — for example,
-when ROIs collectively cover most of the frame, or when `include_preview=True`.
-
-Real reductions come from emitting many small ROIs instead of one large frame,
-not from emitting one ROI the size of the frame itself.
 ## Status
 
 v0.1.0 — internal. Not yet published.
