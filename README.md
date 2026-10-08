@@ -49,7 +49,15 @@ Privacy-preserving frame extraction for AI vision pipelines.
   `redaction_enabled=False` and PII-labeled ROIs log at ERROR.
 - Redaction uses solid fill, not Gaussian blur. Blur is
   reversible under deconvolution attacks; a black rectangle is not.
+  
+## Byte accounting
 
+`byte_delta_pct` is computed as `(raw_bytes - emitted_base64_bytes) / raw_bytes`.
+It is *negative* when the emitted payload exceeds the raw frame — for example,
+when ROIs collectively cover most of the frame, or when `include_preview=True`.
+
+Real reductions come from emitting many small ROIs instead of one large frame,
+not from emitting one ROI the size of the frame itself.
 ## Status
 
 v0.1.0 — internal. Not yet published.
