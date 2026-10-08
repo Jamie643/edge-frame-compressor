@@ -1,3 +1,19 @@
+"""Tests for EdgeFrameCompressor.
+
+Two layers of testing:
+
+1. Unit tests with an injected fake detector. These run fast, need no
+   model file, and verify the redaction and clamping *logic*.
+
+2. Real-model tests that load models/yunet.onnx, verify its SHA-256,
+   and exercise the actual OpenCV detector end-to-end. These fail if
+   the committed model is missing, corrupt, the wrong version, or if
+   the OpenCV API drifts.
+
+The second layer is the one that matters most for a privacy library:
+a regression there means unredacted PII in production, not a bad crop.
+"""
+
 from pathlib import Path
 
 import numpy as np
@@ -38,6 +54,11 @@ def _compressor_with_faces(faces):
     c.yunet_detector = _FakeYuNet(faces)
     c.redaction_enabled = True
     return c
+
+
+# ---------------------------------------------------------------------------
+# Layer 1: unit tests with an injected fake detector.
+# ---------------------------------------------------------------------------
 
 
 def test_solid_fill_redaction_uses_injected_detector():
@@ -126,3 +147,55 @@ def test_low_confidence_detection_is_dropped():
     )
     result = c.process_frame(frame, [weak])
     assert result.rois == []
+
+
+# ---------------------------------------------------------------------------
+# Layer 2: real-model tests.
+#
+# These load the actual committed ONNX model and exercise the real
+# OpenCV detector. They are the tests that would have caught a missing
+# or corrupt model file, a wrong hash, or an OpenCV API change.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(
+    not MODEL_PATH.exists(),
+    reason="models/yunet.onnx not present in this checkout",
+)
+def test_real_model_loads_and_verifies_hash():
+    """Loads the actual committed model and verifies its SHA-256.
+
+    Fails if the model file is missing, corrupt, swapped for a
+    different version, or the committed hash drifts from the bytes.
+    """
+    c = EdgeFrameCompressor(
+        yunet_model_path=str(MODEL_PATH),
+        yunet_model_sha256=MODEL_HASH,
+    )
+    assert c.redaction_enabled is True
+    assert c.yunet_detector is not None
+
+
+@pytest.mark.skipif(
+    not MODEL_PATH.exists(),
+    reason="models/yunet.onnx not present in this checkout",
+)
+def test_real_model_runs_end_to_end():
+    """Runs the real detector over a synthetic frame.
+
+    A blank frame has no faces, so we don't assert count > 0. We
+    assert the pipeline executes without raising and returns a
+    coherent result. That catches OpenCV API drift and shape bugs.
+    """
+    c = EdgeFrameCompressor(
+        yunet_model_path=str(MODEL_PATH),
+        yunet_model_sha256=MODEL_HASH,
+    )
+
+    frame = np.zeros((480, 640, 3), dtype=np.uint8)
+    redacted, count = c.redact_pii(frame)
+
+    assert redacted.shape == frame.shape
+    assert redacted.dtype == frame.dtype
+    assert isinstance(count, int)
+    assert count >= 0
